@@ -1,201 +1,371 @@
-import json
-from tkinter import Tk, Frame, Label, Button, Text, Entry, END, filedialog, messagebox, ttk
-from crypto_engine import generate_aes_key, aes_encrypt_bytes, aes_decrypt_bytes, generate_rsa_keypair, serialize_private_key, serialize_public_key, load_private_key, load_public_key
-from key_manager import encrypt_key_blob, decrypt_key_blob, save_blob_to_file, load_blob_from_file, KEYS_DIR
-from threat_analysis import password_strength_feedback, hash_collision_warning, estimate_password_entropy
+"""
+CryptoGuard Tkinter GUI (updated)
+- Uses project modules under `cryptography/` and `key_management/` (from canvas)
+- Adds Key Management integration (load/save/import keys)
 
-class CryptoGuardGUI:
-    def __init__(self, root):
-        self.root = root
-        self.root.title('CryptoGuard')
-        self.root.geometry('1000x700')
-        self.current_aes_key = None
+Place this file as: CryptoGuard/gui.py
+Run from main.py or directly.
+"""
+
+import os
+import tkinter as tk
+from tkinter import ttk, filedialog, messagebox
+
+# project crypto modules (ensure these packages/files exist in your project)
+from cryptographys.encrypt_text import encrypt_text
+from cryptographys.decrypt_text import decrypt_text
+from cryptographys.encrypt_file import encrypt_file
+from cryptographys.decrypt_file import decrypt_file
+from key_management.generate_key import ensure_keys_exist
+from key_management.store_key import (
+    load_rsa_private,
+    load_rsa_public,
+    load_aes_key,
+    save_custom_rsa_key,
+    save_custom_aes_key,
+)
+from threat_analysis.weak_password_detection import is_weak_password
+from threat_analysis.hash_collision_risk import check_hash_collision_risk
+# For RSA key introspection (PyCryptodome RSA objects)
+try:
+    from Crypto.PublicKey import RSA as _RSA_PK
+except Exception:
+    _RSA_PK = None
+
+# -------------------------------------------------------------
+# GUI THEME COLORS (Tech-style)
+# -------------------------------------------------------------
+BG_DARK = "#0f0f1a"
+BG_CARD = "#1a1a2e"
+ACCENT = "#4cc9f0"
+TEXT_LIGHT = "#e0e0e0"
+GOOD = "#7ef29d"
+WARN = "#ffb020"
+
+# -------------------------------------------------------------
+# MAIN GUI
+# -------------------------------------------------------------
+class CryptoGuardGUI(tk.Tk):
+    def __init__(self, base_path):
+        super().__init__()
+        self.title("CryptoGuard — Secure Encryption Suite")
+        self.geometry("980x660")
+        self.configure(bg=BG_DARK)
+        self.base = base_path
+        self.key_dir = os.path.join(self.base, "keys")
+        self.sec_dir = os.path.join(self.base, "secured_files")
+
+        os.makedirs(self.key_dir, exist_ok=True)
+        os.makedirs(self.sec_dir, exist_ok=True)
+        ensure_keys_exist(self.key_dir)
+
+        # cached key info
+        self._rsa_priv = None
+        self._rsa_pub = None
+        self._aes = None
+
         self.build_ui()
+        self.refresh_keys()
 
+    # ---------------------------------------------------------
+    # UI BUILDER
+    # ---------------------------------------------------------
     def build_ui(self):
-        nb = ttk.Notebook(self.root)
-        nb.pack(fill='both', expand=True)
-        self.tab_enc = Frame(nb); self.tab_keys = Frame(nb)
-        self.tab_pw = Frame(nb); self.tab_threat = Frame(nb)
-        nb.add(self.tab_enc, text='Encrypt / Decrypt'); nb.add(self.tab_keys, text='Key Management')
-        nb.add(self.tab_pw, text='Password Analyzer'); nb.add(self.tab_threat, text='Threat Analysis')
-        self.build_enc_tab(); self.build_keys_tab(); self.build_pw_tab(); self.build_threat_tab()
+        notebook = ttk.Notebook(self)
+        notebook.pack(fill="both", expand=True, padx=12, pady=12)
 
-    def build_enc_tab(self):
-        f = self.tab_enc
-        Label(f, text='Plaintext:').pack(anchor='w', padx=8, pady=4)
-        self.text_plain = Text(f, height=10); self.text_plain.pack(fill='x', padx=8)
-        btn_frame = Frame(f); btn_frame.pack(fill='x', padx=8, pady=6)
-        Button(btn_frame, text='Load File', command=self.load_file_into_text).pack(side='left', padx=4)
-        Button(btn_frame, text='Generate AES Key', command=self.ui_generate_aes_key).pack(side='left', padx=4)
-        Button(btn_frame, text='Encrypt (AES)', command=self.ui_encrypt_text).pack(side='left', padx=4)
-        Button(btn_frame, text='Decrypt (AES)', command=self.ui_decrypt_text).pack(side='left', padx=4)
-        Label(f, text='Ciphertext (JSON):').pack(anchor='w', padx=8, pady=4)
-        self.text_cipher = Text(f, height=10); self.text_cipher.pack(fill='x', padx=8)
+        style = ttk.Style()
+        style.theme_use('clam')
+        style.configure("TNotebook", background=BG_DARK, borderwidth=0)
+        style.configure("TNotebook.Tab", font=("Segoe UI", 11, "bold"))
 
-    def load_file_into_text(self):
-        p = filedialog.askopenfilename()
-        if not p: return
-        with open(p, 'rb') as f: data = f.read()
+        # Tabs
+        tab_text = self._build_encrypt_text_tab(notebook)
+        tab_file = self._build_encrypt_file_tab(notebook)
+        tab_keys = self._build_key_tab(notebook)
+        tab_threat = self._build_threat_tab(notebook)
+
+        notebook.add(tab_text, text="🔐 Text Crypto")
+        notebook.add(tab_file, text="📁 File Crypto")
+        notebook.add(tab_keys, text="🔑 Key Manager")
+        notebook.add(tab_threat, text="⚠ Threat Analysis")
+
+    # ---------------------------------------------------------
+    # TEXT ENCRYPTION TAB
+    # ---------------------------------------------------------
+    def _build_encrypt_text_tab(self, parent):
+        frame = tk.Frame(parent, bg=BG_DARK)
+
+        lbl = tk.Label(frame, text="Text Encryption & Decryption", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold"))
+        lbl.pack(pady=10)
+
+        self.text_input = tk.Text(frame, height=10, bg=BG_CARD, fg=TEXT_LIGHT, insertbackground="white")
+        self.text_input.pack(fill="x", padx=20)
+
+        btn_frame = tk.Frame(frame, bg=BG_DARK)
+        btn_frame.pack(pady=10)
+
+        tk.Button(btn_frame, text="Encrypt", bg=ACCENT, fg="black", width=15, command=self.encrypt_text_action).pack(side="left", padx=10)
+        tk.Button(btn_frame, text="Decrypt", bg=ACCENT, fg="black", width=15, command=self.decrypt_text_action).pack(side="left", padx=10)
+
+        self.text_output = tk.Text(frame, height=10, bg=BG_CARD, fg=GOOD, insertbackground="white")
+        self.text_output.pack(fill="x", padx=20, pady=10)
+
+        return frame
+
+    # Text encrypt
+    def encrypt_text_action(self):
+        plaintext = self.text_input.get("1.0", "end").strip()
+        if not plaintext:
+            messagebox.showerror("Error", "Enter text to encrypt.")
+            return
         try:
-            text = data.decode('utf-8')
-        except:
-            text = '<binary: base64>\\n' + base64.b64encode(data).decode('utf-8')
-        self.text_plain.delete('1.0', END); self.text_plain.insert(END, text)
-
-    def ui_generate_aes_key(self):
-        self.current_aes_key = generate_aes_key()
-        messagebox.showinfo('AES Key', 'AES-256 key generated in memory.')
-
-    def ui_encrypt_text(self):
-        pt = self.text_plain.get('1.0', END).encode('utf-8')
-        if not pt.strip(): messagebox.showwarning('Missing', 'Enter plaintext'); return
-        if not self.current_aes_key: messagebox.showwarning('Missing key', 'Generate or load AES key'); return
-        blob = aes_encrypt_bytes(self.current_aes_key, pt)
-        self.text_cipher.delete('1.0', END); self.text_cipher.insert(END, json.dumps(blob))
-
-    def ui_decrypt_text(self):
-        try:
-            blob = json.loads(self.text_cipher.get('1.0', END))
-        except:
-            messagebox.showerror('Bad', 'Ciphertext must be JSON'); return
-        if not self.current_aes_key: messagebox.showwarning('No key', 'Generate or load AES key'); return
-        try:
-            pt = aes_decrypt_bytes(self.current_aes_key, blob)
-            try: self.text_plain.delete('1.0', END); self.text_plain.insert(END, pt.decode('utf-8'))
-            except: self.text_plain.delete('1.0', END); self.text_plain.insert(END, '<binary>'); 
+            blob = encrypt_text(plaintext, self.key_dir)
+            self.text_output.delete("1.0", "end")
+            self.text_output.insert("end", blob.hex())
         except Exception as e:
-            messagebox.showerror('Decrypt failed', str(e))
+            messagebox.showerror("Encryption error", str(e))
 
-    def build_keys_tab(self):
-        f = self.tab_keys
-        Label(f, text='AES Key Management:').pack(anchor='w', padx=8, pady=4)
-        Button(f, text='Save current AES key (password protect)', command=self.ui_save_current_aes_key).pack(anchor='w', padx=8, pady=2)
-        Button(f, text='Load AES key', command=self.ui_load_aes_key).pack(anchor='w', padx=8, pady=2)
-        Label(f, text='RSA Key Management:').pack(anchor='w', padx=8, pady=8)
-        Button(f, text='Generate RSA Keypair', command=self.ui_generate_rsa).pack(anchor='w', padx=8, pady=2)
-        Button(f, text='Load RSA Private Key', command=self.ui_load_rsa_private).pack(anchor='w', padx=8, pady=2)
-        Button(f, text='Load RSA Public Key', command=self.ui_load_rsa_public).pack(anchor='w', padx=8, pady=2)
-        self.keys_list = Text(f, height=12); self.keys_list.pack(fill='both', padx=8, pady=8)
-        self.refresh_keys_list()
-
-    def ui_save_current_aes_key(self):
-        if not self.current_aes_key: messagebox.showwarning('No key','Generate one first'); return
-        name = filedialog.asksaveasfilename(initialdir=str(KEYS_DIR), defaultextension='.key')
-        if not name: return
-        import tkinter.simpledialog as sd
-        pwd = sd.askstring('Master password','Enter a password to protect the AES key', show='*')
-        if pwd is None: return
-        blob = encrypt_key_blob(self.current_aes_key, pwd)
-        save_blob_to_file(blob, name)
-        messagebox.showinfo('Saved', f'AES key saved to {name}')
-        self.refresh_keys_list()
-
-    def ui_load_aes_key(self):
-        p = filedialog.askopenfilename(initialdir=str(KEYS_DIR))
-        if not p: return
-        import tkinter.simpledialog as sd
-        pwd = sd.askstring('Password','Enter password to unlock', show='*')
-        if pwd is None: return
+    # Text decrypt
+    def decrypt_text_action(self):
+        hexdata = self.text_input.get("1.0", "end").strip()
         try:
-            blob = load_blob_from_file(p)
-            key = decrypt_key_blob(blob, pwd)
-            self.current_aes_key = key
-            messagebox.showinfo('Loaded', 'AES key loaded into memory')
+            raw = bytes.fromhex(hexdata)
+            pt = decrypt_text(raw, self.key_dir)
+            self.text_output.delete("1.0", "end")
+            self.text_output.insert("end", pt)
         except Exception as e:
-            messagebox.showerror('Failed', str(e))
+            messagebox.showerror("Error", f"Failed to decrypt: {e}")
 
-    def ui_generate_rsa(self):
-        priv, pub = generate_rsa_keypair(2048)
-        p = filedialog.asksaveasfilename(initialdir=str(KEYS_DIR), defaultextension='.pem')
-        if not p: return
-        with open(p, 'wb') as f: f.write(serialize_private_key(priv))
-        with open(p + '.pub', 'wb') as f: f.write(serialize_public_key(pub))
-        messagebox.showinfo('RSA', f'Private saved to {p} and public to {p}.pub')
-        self.refresh_keys_list()
+    # ---------------------------------------------------------
+    # FILE ENCRYPTION TAB
+    # ---------------------------------------------------------
+    def _build_encrypt_file_tab(self, parent):
+        frame = tk.Frame(parent, bg=BG_DARK)
+        tk.Label(frame, text="File Encryption & Decryption", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold")).pack(pady=10)
 
-    def ui_load_rsa_private(self):
-        p = filedialog.askopenfilename(initialdir=str(KEYS_DIR))
-        if not p: return
+        # Encrypt
+        tk.Button(frame, text="Encrypt File", bg=ACCENT, fg="black", width=24, command=self.encrypt_file_dialog).pack(pady=12)
+
+        # Decrypt
+        tk.Button(frame, text="Decrypt File", bg=ACCENT, fg="black", width=24, command=self.decrypt_file_dialog).pack(pady=12)
+
+        # Recent secure folder
+        tk.Label(frame, text=f"Secure folder: {self.sec_dir}", fg=TEXT_LIGHT, bg=BG_DARK).pack(pady=14)
+
+        return frame
+
+    def encrypt_file_dialog(self):
+        path = filedialog.askopenfilename()
+        if not path:
+            return
+        out = os.path.join(self.sec_dir, os.path.basename(path) + ".enc")
         try:
-            with open(p, 'rb') as f: data = f.read()
-            key = load_private_key(data)
-            size = getattr(key, 'key_size', 'unknown')
-            messagebox.showinfo('Loaded', f'Private key size: {size}')
+            encrypt_file(path, out, self.key_dir)
+            messagebox.showinfo("Encrypted", f"Encrypted file saved to:\n{out}")
         except Exception as e:
-            messagebox.showerror('Fail', str(e))
+            messagebox.showerror("Error", f"Encryption failed: {e}")
 
-    def ui_load_rsa_public(self):
-        p = filedialog.askopenfilename(initialdir=str(KEYS_DIR))
-        if not p: return
+    def decrypt_file_dialog(self):
+        path = filedialog.askopenfilename()
+        if not path:
+            return
+        out = filedialog.asksaveasfilename(defaultextension=".dec")
+        if not out:
+            return
         try:
-            with open(p, 'rb') as f: data = f.read()
-            key = load_public_key(data)
-            size = getattr(key, 'key_size', 'unknown')
-            messagebox.showinfo('Loaded', f'Public key size: {size}')
+            decrypt_file(path, out, self.key_dir)
+            messagebox.showinfo("Decrypted", f"Decrypted file saved to:\n{out}")
         except Exception as e:
-            messagebox.showerror('Fail', str(e))
+            messagebox.showerror("Error", f"Decryption failed: {e}")
 
-    def refresh_keys_list(self):
-        import os
-        self.keys_list.delete('1.0', END)
-        files = sorted([f for f in (str(KEYS_DIR)).split('/') and __import__('os').listdir(KEYS_DIR) or []])
-        # simple cross-platform: list files directly
+    # ---------------------------------------------------------
+    # KEY MANAGER TAB
+    # ---------------------------------------------------------
+    def _build_key_tab(self, parent):
+        frame = tk.Frame(parent, bg=BG_DARK)
+        tk.Label(frame, text="Key Manager", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold")).pack(pady=10)
+
+        btn_row = tk.Frame(frame, bg=BG_DARK)
+        btn_row.pack(pady=6)
+
+        tk.Button(btn_row, text="Generate New RSA + AES", bg=ACCENT, fg="black", width=24, command=self.regen_keys).pack(side="left", padx=6)
+        tk.Button(btn_row, text="Import Key File", bg=ACCENT, fg="black", width=18, command=self.import_key_file).pack(side="left", padx=6)
+
+        info_frame = tk.Frame(frame, bg=BG_CARD, padx=10, pady=10)
+        info_frame.pack(padx=20, pady=14, fill="x")
+
+        tk.Label(info_frame, text="RSA Private:", fg=TEXT_LIGHT, bg=BG_CARD).grid(row=0, column=0, sticky="w")
+        self.lbl_rsa_priv = tk.Label(info_frame, text="-", fg=GOOD, bg=BG_CARD)
+        self.lbl_rsa_priv.grid(row=0, column=1, sticky="w")
+
+        tk.Label(info_frame, text="RSA Public:", fg=TEXT_LIGHT, bg=BG_CARD).grid(row=1, column=0, sticky="w")
+        self.lbl_rsa_pub = tk.Label(info_frame, text="-", fg=GOOD, bg=BG_CARD)
+        self.lbl_rsa_pub.grid(row=1, column=1, sticky="w")
+
+        tk.Label(info_frame, text="AES Key:", fg=TEXT_LIGHT, bg=BG_CARD).grid(row=2, column=0, sticky="w")
+        self.lbl_aes = tk.Label(info_frame, text="-", fg=GOOD, bg=BG_CARD)
+        self.lbl_aes.grid(row=2, column=1, sticky="w")
+
+        # Action buttons
+        act_frame = tk.Frame(frame, bg=BG_DARK)
+        act_frame.pack(pady=6)
+
+        tk.Button(act_frame, text="Export RSA Public", bg=ACCENT, fg="black", command=self.export_rsa_public).pack(side="left", padx=6)
+        tk.Button(act_frame, text="Export RSA Private (save copy)", bg=ACCENT, fg="black", command=self.export_rsa_private).pack(side="left", padx=6)
+
+        return frame
+
+    def regen_keys(self):
+        ensure_keys_exist(self.key_dir)
+        self.refresh_keys()
+        messagebox.showinfo("Keys", "Generated (or ensured) RSA + AES keys in keys/ directory")
+
+    def refresh_keys(self):
         try:
-            items = __import__('os').listdir(KEYS_DIR)
-            for it in items:
-                self.keys_list.insert(END, it + '\\n')
+            self._rsa_priv = load_rsa_private(self.key_dir)
         except Exception:
-            self.keys_list.insert(END, 'Unable to list keys dir')
-
-    def build_pw_tab(self):
-        f = self.tab_pw
-        Label(f, text='Password Analyzer').pack(anchor='w', padx=8, pady=6)
-        entry = Entry(f, show='*', width=60); entry.pack(padx=8, anchor='w')
-        result = Label(f, text='', justify='left'); result.pack(padx=8, pady=8, anchor='w')
-        def go():
-            pw = entry.get()
-            if not pw: messagebox.showwarning('Enter', 'Enter a password'); return
-            res = password_strength_feedback(pw)
-            txt = f'Entropy: {res["entropy"]:.1f} bits\\n'
-            if res['issues']:
-                txt += 'Issues:\\n' + '\\n'.join(['- ' + i for i in res['issues']])
-            else:
-                txt += 'No major issues.'
-            result.config(text=txt)
-        Button(f, text='Analyze', command=go).pack(padx=8, pady=4)
-
-    def build_threat_tab(self):
-        f = self.tab_threat
-        Label(f, text='Threat Analysis').pack(anchor='w', padx=8, pady=6)
-        self.threat_text = Text(f, height=20); self.threat_text.pack(fill='both', padx=8, pady=8)
-        Button(f, text='Run Analysis', command=self.run_threat_analysis).pack(padx=8, pady=4)
-
-    def run_threat_analysis(self):
-        self.threat_text.delete('1.0', END)
-        if not self.current_aes_key:
-            self.threat_text.insert(END, 'AES key in memory: NOT LOADED\\n\\n')
-        else:
-            self.threat_text.insert(END, 'AES key in memory: OK\\n\\n')
+            self._rsa_priv = None
         try:
-            import os
-            for f in sorted(__import__('os').listdir(KEYS_DIR)):
-                self.threat_text.insert(END, f'File: {f}\\n')
-                if f.endswith('.pem'):
-                    try:
-                        with open(KEYS_DIR / f, 'rb') as fh:
-                            from crypto_engine import load_private_key
-                            key = load_private_key(fh.read())
-                            size = getattr(key, 'key_size', 0)
-                            if size and size < 2048:
-                                self.threat_text.insert(END, f'  Weak RSA key: {size} bits (recommend >= 2048)\\n\\n')
-                            else:
-                                self.threat_text.insert(END, f'  RSA key: {size} bits\\n\\n')
-                    except Exception:
-                        self.threat_text.insert(END, '  Could not parse PEM\\n\\n')
-                elif f.endswith('.key'):
-                    self.threat_text.insert(END, '  AES key blob (password protected)\\n\\n')
-                else:
-                    self.threat_text.insert(END, '  Unknown file type\\n\\n')
+            self._rsa_pub = load_rsa_public(self.key_dir)
+        except Exception:
+            self._rsa_pub = None
+        try:
+            self._aes = load_aes_key(self.key_dir)
+        except Exception:
+            self._aes = None
+
+        # update labels
+        if self._rsa_priv is not None:
+            try:
+                bits = getattr(self._rsa_priv, 'size', None)
+                if bits is None and hasattr(self._rsa_priv, 'n'):
+                    bits = self._rsa_priv.n.bit_length()
+                self.lbl_rsa_priv.config(text=f"{bits} bits")
+            except Exception:
+                self.lbl_rsa_priv.config(text="Loaded")
+        else:
+            self.lbl_rsa_priv.config(text="(missing)")
+
+        if self._rsa_pub is not None:
+            try:
+                bits = getattr(self._rsa_pub, 'size', None)
+                if bits is None and hasattr(self._rsa_pub, 'n'):
+                    bits = self._rsa_pub.n.bit_length()
+                self.lbl_rsa_pub.config(text=f"{bits} bits")
+            except Exception:
+                self.lbl_rsa_pub.config(text="Loaded")
+        else:
+            self.lbl_rsa_pub.config(text="(missing)")
+
+        if self._aes is not None:
+            self.lbl_aes.config(text=f"{len(self._aes)*8} bits")
+        else:
+            self.lbl_aes.config(text="(missing)")
+
+    def import_key_file(self):
+        path = filedialog.askopenfilename()
+        if not path:
+            return
+        try:
+            with open(path, 'rb') as f:
+                data = f.read()
+            # simple heuristic: PEM text contains 'BEGIN'
+            if b'BEGIN' in data:
+                # treat as RSA (private or public)
+                # ask user whether private or public
+                kind = messagebox.askquestion("Key type", "Is this a PRIVATE key? (No = public)")
+                private = (kind == 'yes')
+                save_custom_rsa_key(data, self.key_dir, private=private)
+                messagebox.showinfo("Imported", f"Saved custom RSA {'private' if private else 'public'} key to keys/")
+            else:
+                # treat as raw AES key
+                save_custom_aes_key(data, self.key_dir)
+                messagebox.showinfo("Imported", "Saved custom AES key to keys/")
+            self.refresh_keys()
         except Exception as e:
-            self.threat_text.insert(END, 'Failed to scan keys directory: ' + str(e))
+            messagebox.showerror("Import failed", str(e))
+
+    def export_rsa_public(self):
+        if self._rsa_pub is None:
+            messagebox.showwarning("No key", "No RSA public key loaded")
+            return
+        path = filedialog.asksaveasfilename(defaultextension='.pem')
+        if not path:
+            return
+        try:
+            # write bytes depending on key object type
+            if hasattr(self._rsa_pub, 'export_key'):
+                data = self._rsa_pub.export_key()
+            else:
+                data = str(self._rsa_pub).encode()
+            with open(path, 'wb') as f:
+                f.write(data)
+            messagebox.showinfo('Saved', f'Public key saved to\n{path}')
+        except Exception as e:
+            messagebox.showerror('Error', str(e))
+
+    def export_rsa_private(self):
+        if self._rsa_priv is None:
+            messagebox.showwarning("No key", "No RSA private key loaded")
+            return
+        path = filedialog.asksaveasfilename(defaultextension='.pem')
+        if not path:
+            return
+        try:
+            if hasattr(self._rsa_priv, 'export_key'):
+                data = self._rsa_priv.export_key()
+            else:
+                data = str(self._rsa_priv).encode()
+            with open(path, 'wb') as f:
+                f.write(data)
+            messagebox.showinfo('Saved', f'Private key saved to\n{path}')
+        except Exception as e:
+            messagebox.showerror('Error', str(e))
+
+    # ---------------------------------------------------------
+    # THREAT ANALYSIS TAB
+    # ---------------------------------------------------------
+    def _build_threat_tab(self, parent):
+        frame = tk.Frame(parent, bg=BG_DARK)
+        tk.Label(frame, text="Threat Analysis Tools", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold")).pack(pady=10)
+
+        # Weak password
+        tk.Label(frame, text="Check Weak Password", fg=TEXT_LIGHT, bg=BG_DARK).pack(pady=5)
+        self.pass_entry = tk.Entry(frame, width=40, bg=BG_CARD, fg=TEXT_LIGHT, insertbackground="white")
+        self.pass_entry.pack()
+        tk.Button(frame, text="Analyze", bg=ACCENT, fg="black", command=self.check_password).pack(pady=5)
+
+        # Hash risk
+        tk.Label(frame, text="Check Hash Algorithm", fg=TEXT_LIGHT, bg=BG_DARK).pack(pady=15)
+        self.hash_entry = tk.Entry(frame, width=40, bg=BG_CARD, fg=TEXT_LIGHT, insertbackground="white")
+        self.hash_entry.pack()
+        tk.Button(frame, text="Analyze", bg=ACCENT, fg="black", command=self.check_hash).pack(pady=5)
+
+        self.threat_output = tk.Label(frame, text="", fg=GOOD, bg=BG_DARK, font=("Segoe UI", 12))
+        self.threat_output.pack(pady=20)
+
+        return frame
+
+    def check_password(self):
+        pw = self.pass_entry.get().strip()
+        if is_weak_password(pw):
+            self.threat_output.config(text="⚠ Weak password detected", fg=WARN)
+        else:
+            self.threat_output.config(text="✔ Strong password", fg=GOOD)
+
+    def check_hash(self):
+        name = self.hash_entry.get().strip()
+        if is_hash_algorithm_weak(name):
+            self.threat_output.config(text="⚠ Weak hash algorithm", fg=WARN)
+        else:
+            self.threat_output.config(text="✔ Safe hash algorithm", fg=GOOD)
+
+
+# -------------------------------------------------------------
+# RUN
+# -------------------------------------------------------------
+if __name__ == "__main__":
+    base = os.path.dirname(os.path.abspath(__file__))
+    app = CryptoGuardGUI(base)
+    app.mainloop()
