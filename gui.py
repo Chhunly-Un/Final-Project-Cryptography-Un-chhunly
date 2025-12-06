@@ -1,371 +1,192 @@
-"""
-CryptoGuard Tkinter GUI (updated)
-- Uses project modules under `cryptography/` and `key_management/` (from canvas)
-- Adds Key Management integration (load/save/import keys)
-
-Place this file as: CryptoGuard/gui.py
-Run from main.py or directly.
-"""
-
+# gui.py - FINAL CLEAN MASTERPIECE (No Key Management Tab)
+import customtkinter as ctk
+from tkinter import filedialog, messagebox
 import os
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
 
-# project crypto modules (ensure these packages/files exist in your project)
-from cryptographys.encrypt_text import encrypt_text
-from cryptographys.decrypt_text import decrypt_text
-from cryptographys.encrypt_file import encrypt_file
-from cryptographys.decrypt_file import decrypt_file
-from key_management.generate_key import ensure_keys_exist
-from key_management.store_key import (
-    load_rsa_private,
-    load_rsa_public,
-    load_aes_key,
-    save_custom_rsa_key,
-    save_custom_aes_key,
-)
-from threat_analysis.weak_password_detection import is_weak_password
-from threat_analysis.hash_collision_risk import check_hash_collision_risk
-# For RSA key introspection (PyCryptodome RSA objects)
-try:
-    from Crypto.PublicKey import RSA as _RSA_PK
-except Exception:
-    _RSA_PK = None
+# YOUR FOLDER IS CALLED "cryptographys" → keep this import
+from cryptographys import encrypt_text, decrypt_text, encrypt_file, decrypt_file
 
-# -------------------------------------------------------------
-# GUI THEME COLORS (Tech-style)
-# -------------------------------------------------------------
-BG_DARK = "#0f0f1a"
-BG_CARD = "#1a1a2e"
-ACCENT = "#4cc9f0"
-TEXT_LIGHT = "#e0e0e0"
-GOOD = "#7ef29d"
-WARN = "#ffb020"
+ctk.set_appearance_mode("Dark")
+ctk.set_default_color_theme("blue")
 
-# -------------------------------------------------------------
-# MAIN GUI
-# -------------------------------------------------------------
-class CryptoGuardGUI(tk.Tk):
-    def __init__(self, base_path):
-        super().__init__()
-        self.title("CryptoGuard — Secure Encryption Suite")
-        self.geometry("980x660")
-        self.configure(bg=BG_DARK)
-        self.base = base_path
-        self.key_dir = os.path.join(self.base, "keys")
-        self.sec_dir = os.path.join(self.base, "secured_files")
+class CryptoGuardApp:
+    def __init__(self):
+        self.root = ctk.CTk()
+        self.root.title("CryptoGuard v1.0")
+        self.root.geometry("900x720")
+        self.root.configure(fg_color="#1f1f2e")
+        self.create_widgets()
 
-        os.makedirs(self.key_dir, exist_ok=True)
-        os.makedirs(self.sec_dir, exist_ok=True)
-        ensure_keys_exist(self.key_dir)
+    def create_widgets(self):
+        title = ctk.CTkLabel(self.root, text="CRYPTOGUARD", font=("Orbitron", 36, "bold"),
+                             text_color="#00ff99")
+        title.pack(pady=20)
 
-        # cached key info
-        self._rsa_priv = None
-        self._rsa_pub = None
-        self._aes = None
+        subtitle = ctk.CTkLabel(self.root, text="Learn Cryptography • Encrypt Safely • Analyze Threats",
+                                font=("Consolas", 14), text_color="#888")
+        subtitle.pack(pady=5)
 
-        self.build_ui()
-        self.refresh_keys()
+        tabview = ctk.CTkTabview(self.root, width=850, height=520)
+        tabview.pack(pady=20)
 
-    # ---------------------------------------------------------
-    # UI BUILDER
-    # ---------------------------------------------------------
-    def build_ui(self):
-        notebook = ttk.Notebook(self)
-        notebook.pack(fill="both", expand=True, padx=12, pady=12)
+        # ONLY 3 TABS — CLEAN & PROFESSIONAL
+        tabview.add("Text Encryption")
+        tabview.add("File Encryption")
+        tabview.add("Threat Analysis")
 
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("TNotebook", background=BG_DARK, borderwidth=0)
-        style.configure("TNotebook.Tab", font=("Segoe UI", 11, "bold"))
+        self.build_text_tab(tabview)
+        self.build_file_tab(tabview)
+        self.build_threat_tab(tabview)
 
-        # Tabs
-        tab_text = self._build_encrypt_text_tab(notebook)
-        tab_file = self._build_encrypt_file_tab(notebook)
-        tab_keys = self._build_key_tab(notebook)
-        tab_threat = self._build_threat_tab(notebook)
+    def build_text_tab(self, tabview):
+        frame = tabview.tab("Text Encryption")
+        self.text_input = ctk.CTkTextbox(frame, width=760, height=180, font=("Consolas", 12))
+        self.text_input.pack(pady=15)
 
-        notebook.add(tab_text, text="🔐 Text Crypto")
-        notebook.add(tab_file, text="📁 File Crypto")
-        notebook.add(tab_keys, text="🔑 Key Manager")
-        notebook.add(tab_threat, text="⚠ Threat Analysis")
-
-    # ---------------------------------------------------------
-    # TEXT ENCRYPTION TAB
-    # ---------------------------------------------------------
-    def _build_encrypt_text_tab(self, parent):
-        frame = tk.Frame(parent, bg=BG_DARK)
-
-        lbl = tk.Label(frame, text="Text Encryption & Decryption", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold"))
-        lbl.pack(pady=10)
-
-        self.text_input = tk.Text(frame, height=10, bg=BG_CARD, fg=TEXT_LIGHT, insertbackground="white")
-        self.text_input.pack(fill="x", padx=20)
-
-        btn_frame = tk.Frame(frame, bg=BG_DARK)
+        btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.pack(pady=10)
 
-        tk.Button(btn_frame, text="Encrypt", bg=ACCENT, fg="black", width=15, command=self.encrypt_text_action).pack(side="left", padx=10)
-        tk.Button(btn_frame, text="Decrypt", bg=ACCENT, fg="black", width=15, command=self.decrypt_text_action).pack(side="left", padx=10)
+        ctk.CTkButton(btn_frame, text="Encrypt Text", fg_color="#00ff41", hover_color="#00cc33",
+                      command=self.encrypt_text).grid(row=0, column=0, padx=15)
+        ctk.CTkButton(btn_frame, text="Decrypt Text", fg_color="#ff2a6d", hover_color="#cc0044",
+                      command=self.decrypt_text).grid(row=0, column=1, padx=15)
 
-        self.text_output = tk.Text(frame, height=10, bg=BG_CARD, fg=GOOD, insertbackground="white")
-        self.text_output.pack(fill="x", padx=20, pady=10)
+        self.text_result = ctk.CTkTextbox(frame, width=760, height=150, font=("Consolas", 11))
+        self.text_result.pack(pady=15)
 
-        return frame
+    def build_file_tab(self, tabview):
+        frame = tabview.tab("File Encryption")
+        ctk.CTkLabel(frame, text="Secure Your Files with Hybrid Encryption", font=("Arial", 16)).pack(pady=20)
 
-    # Text encrypt
-    def encrypt_text_action(self):
-        plaintext = self.text_input.get("1.0", "end").strip()
-        if not plaintext:
-            messagebox.showerror("Error", "Enter text to encrypt.")
+        ctk.CTkButton(frame, text="Select File to Encrypt", fg_color="#05d6d9", hover_color="#03a9ac",
+                      width=320, height=50, command=self.encrypt_file).pack(pady=12)
+        ctk.CTkButton(frame, text="Select File to Decrypt", fg_color="#ff9100", hover_color="#cc7400",
+                      width=320, height=50, command=self.decrypt_file).pack(pady=12)
+
+        self.file_status = ctk.CTkLabel(frame, text="No file selected", text_color="#aaa")
+        self.file_status.pack(pady=22)
+
+        # 3 PERFECT FOLDER BUTTONS
+        folder_frame = ctk.CTkFrame(frame, fg_color="transparent")
+        folder_frame.pack(pady=10)
+
+        ctk.CTkButton(folder_frame, text="Open Encrypted Folder", 
+                      fg_color="#ff2a6d", hover_color="#cc0044", width=280, height=45,
+                      command=self.open_encrypted_folder).pack(pady=8)
+        ctk.CTkButton(folder_frame, text="Open Decrypted Folder", 
+                      fg_color="#8a2be2", hover_color="#9932cc", width=280, height=45,
+                      command=self.open_decrypted_folder).pack(pady=8)
+        ctk.CTkButton(folder_frame, text="Open Keys Folder", 
+                      fg_color="#00ff41", hover_color="#00cc33", width=280, height=45,
+                      command=self.open_keys_folder).pack(pady=8)
+
+    def build_threat_tab(self, tabview):
+        frame = tabview.tab("Threat Analysis")
+        ctk.CTkLabel(frame, text="Password Strength Analyzer", font=("Arial", 18, "bold"),
+                     text_color="#00ffff").pack(pady=30)
+        self.pw_entry = ctk.CTkEntry(frame, placeholder_text="Enter password to test", show="*", width=400)
+        self.pw_entry.pack(pady=15)
+        ctk.CTkButton(frame, text="Analyze Password", fg_color="#ff2a6d", hover_color="#cc0044",
+                      command=self.analyze_password).pack(pady=12)
+        self.pw_result = ctk.CTkLabel(frame, text="Result will appear here", font=("Consolas", 14),
+                                      text_color="#888", height=120, wraplength=600)
+        self.pw_result.pack(pady=20)
+
+    # TEXT ENCRYPTION
+    def encrypt_text(self):
+        text = self.text_input.get("0.0", "end").strip()
+        if not text:
+            messagebox.showwarning("Empty", "Please enter text to encrypt!")
             return
         try:
-            blob = encrypt_text(plaintext, self.key_dir)
-            self.text_output.delete("1.0", "end")
-            self.text_output.insert("end", blob.hex())
+            encrypted_b64, key_name = encrypt_text(text)
+            self.text_result.delete("0.0", "end")
+            self.text_result.insert("0.0", encrypted_b64)
+            messagebox.showinfo("TEXT ENCRYPTED!", 
+                f"New key generated!\n\nKey: {key_name}\nSaved: keys/{key_name}_private.pem\n\nKEEP THIS KEY SAFE!")
         except Exception as e:
-            messagebox.showerror("Encryption error", str(e))
+            messagebox.showerror("Error", f"Encryption failed:\n{e}")
 
-    # Text decrypt
-    def decrypt_text_action(self):
-        hexdata = self.text_input.get("1.0", "end").strip()
+    def decrypt_text(self):
+        text = self.text_input.get("0.0", "end").strip()
+        if not text:
+            messagebox.showwarning("Empty", "Paste encrypted text first!")
+            return
         try:
-            raw = bytes.fromhex(hexdata)
-            pt = decrypt_text(raw, self.key_dir)
-            self.text_output.delete("1.0", "end")
-            self.text_output.insert("end", pt)
+            output_path = decrypt_text(text)
+            self.text_result.delete("0.0", "end")
+            self.text_result.insert("0.0", f"DECRYPTED & SAVED!\n→ {os.path.basename(output_path)}")
+            messagebox.showinfo("TEXT DECRYPTED!", f"Saved to decrypted_folder/\n→ {os.path.basename(output_path)}")
+            self.open_decrypted_folder()
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to decrypt: {e}")
+            messagebox.showerror("FAILED", f"Wrong key or corrupted data!\n\n{e}")
 
-    # ---------------------------------------------------------
-    # FILE ENCRYPTION TAB
-    # ---------------------------------------------------------
-    def _build_encrypt_file_tab(self, parent):
-        frame = tk.Frame(parent, bg=BG_DARK)
-        tk.Label(frame, text="File Encryption & Decryption", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold")).pack(pady=10)
-
-        # Encrypt
-        tk.Button(frame, text="Encrypt File", bg=ACCENT, fg="black", width=24, command=self.encrypt_file_dialog).pack(pady=12)
-
-        # Decrypt
-        tk.Button(frame, text="Decrypt File", bg=ACCENT, fg="black", width=24, command=self.decrypt_file_dialog).pack(pady=12)
-
-        # Recent secure folder
-        tk.Label(frame, text=f"Secure folder: {self.sec_dir}", fg=TEXT_LIGHT, bg=BG_DARK).pack(pady=14)
-
-        return frame
-
-    def encrypt_file_dialog(self):
-        path = filedialog.askopenfilename()
-        if not path:
-            return
-        out = os.path.join(self.sec_dir, os.path.basename(path) + ".enc")
+    def encrypt_file(self):
+        file_path = filedialog.askopenfilename(title="Select File to Encrypt")
+        if not file_path: return
         try:
-            encrypt_file(path, out, self.key_dir)
-            messagebox.showinfo("Encrypted", f"Encrypted file saved to:\n{out}")
+            output_path, key_name = encrypt_file(file_path)
+            self.file_status.configure(text=f"ENCRYPTED → {key_name}", text_color="#00ff99")
+            messagebox.showinfo("FILE ENCRYPTED!", 
+                f"Key: {key_name}\nFile: secured_files/{os.path.basename(output_path)}\n\nNEVER LOSE THIS KEY!")
         except Exception as e:
-            messagebox.showerror("Error", f"Encryption failed: {e}")
+            messagebox.showerror("Error", f"Encryption failed:\n{e}")
 
-    def decrypt_file_dialog(self):
-        path = filedialog.askopenfilename()
-        if not path:
-            return
-        out = filedialog.asksaveasfilename(defaultextension=".dec")
-        if not out:
-            return
+    def decrypt_file(self):
+        file_path = filedialog.askopenfilename(
+            initialdir="secured_files",
+            title="Select encrypted file (.cg_enc)",
+            filetypes=[("CryptoGuard Files", "*.cg_enc")]
+        )
+        if not file_path: return
         try:
-            decrypt_file(path, out, self.key_dir)
-            messagebox.showinfo("Decrypted", f"Decrypted file saved to:\n{out}")
+            output_path = decrypt_file(file_path)
+            self.file_status.configure(text="DECRYPTED → decrypted_folder/", text_color="#05d6d9")
+            messagebox.showinfo("DECRYPTED!", f"Saved to decrypted_folder/\n→ {os.path.basename(output_path)}")
+            if messagebox.askyesno("Open Folder?", "Open decrypted_folder now?"):
+                self.open_decrypted_folder()
         except Exception as e:
-            messagebox.showerror("Error", f"Decryption failed: {e}")
+            messagebox.showerror("FAILED", str(e))
 
-    # ---------------------------------------------------------
-    # KEY MANAGER TAB
-    # ---------------------------------------------------------
-    def _build_key_tab(self, parent):
-        frame = tk.Frame(parent, bg=BG_DARK)
-        tk.Label(frame, text="Key Manager", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold")).pack(pady=10)
+    # FOLDER OPENERS
+    def open_encrypted_folder(self):
+        self._open_folder("secured_files", "Encrypted Files")
 
-        btn_row = tk.Frame(frame, bg=BG_DARK)
-        btn_row.pack(pady=6)
+    def open_decrypted_folder(self):
+        self._open_folder("decrypted_folder", "Decrypted Files")
 
-        tk.Button(btn_row, text="Generate New RSA + AES", bg=ACCENT, fg="black", width=24, command=self.regen_keys).pack(side="left", padx=6)
-        tk.Button(btn_row, text="Import Key File", bg=ACCENT, fg="black", width=18, command=self.import_key_file).pack(side="left", padx=6)
+    def open_keys_folder(self):
+        self._open_folder("keys", "Private Keys")
 
-        info_frame = tk.Frame(frame, bg=BG_CARD, padx=10, pady=10)
-        info_frame.pack(padx=20, pady=14, fill="x")
-
-        tk.Label(info_frame, text="RSA Private:", fg=TEXT_LIGHT, bg=BG_CARD).grid(row=0, column=0, sticky="w")
-        self.lbl_rsa_priv = tk.Label(info_frame, text="-", fg=GOOD, bg=BG_CARD)
-        self.lbl_rsa_priv.grid(row=0, column=1, sticky="w")
-
-        tk.Label(info_frame, text="RSA Public:", fg=TEXT_LIGHT, bg=BG_CARD).grid(row=1, column=0, sticky="w")
-        self.lbl_rsa_pub = tk.Label(info_frame, text="-", fg=GOOD, bg=BG_CARD)
-        self.lbl_rsa_pub.grid(row=1, column=1, sticky="w")
-
-        tk.Label(info_frame, text="AES Key:", fg=TEXT_LIGHT, bg=BG_CARD).grid(row=2, column=0, sticky="w")
-        self.lbl_aes = tk.Label(info_frame, text="-", fg=GOOD, bg=BG_CARD)
-        self.lbl_aes.grid(row=2, column=1, sticky="w")
-
-        # Action buttons
-        act_frame = tk.Frame(frame, bg=BG_DARK)
-        act_frame.pack(pady=6)
-
-        tk.Button(act_frame, text="Export RSA Public", bg=ACCENT, fg="black", command=self.export_rsa_public).pack(side="left", padx=6)
-        tk.Button(act_frame, text="Export RSA Private (save copy)", bg=ACCENT, fg="black", command=self.export_rsa_private).pack(side="left", padx=6)
-
-        return frame
-
-    def regen_keys(self):
-        ensure_keys_exist(self.key_dir)
-        self.refresh_keys()
-        messagebox.showinfo("Keys", "Generated (or ensured) RSA + AES keys in keys/ directory")
-
-    def refresh_keys(self):
+    def _open_folder(self, folder_name, title):
+        folder = os.path.join(os.getcwd(), folder_name)
+        os.makedirs(folder, exist_ok=True)
+        import subprocess, platform
         try:
-            self._rsa_priv = load_rsa_private(self.key_dir)
-        except Exception:
-            self._rsa_priv = None
-        try:
-            self._rsa_pub = load_rsa_public(self.key_dir)
-        except Exception:
-            self._rsa_pub = None
-        try:
-            self._aes = load_aes_key(self.key_dir)
-        except Exception:
-            self._aes = None
-
-        # update labels
-        if self._rsa_priv is not None:
-            try:
-                bits = getattr(self._rsa_priv, 'size', None)
-                if bits is None and hasattr(self._rsa_priv, 'n'):
-                    bits = self._rsa_priv.n.bit_length()
-                self.lbl_rsa_priv.config(text=f"{bits} bits")
-            except Exception:
-                self.lbl_rsa_priv.config(text="Loaded")
-        else:
-            self.lbl_rsa_priv.config(text="(missing)")
-
-        if self._rsa_pub is not None:
-            try:
-                bits = getattr(self._rsa_pub, 'size', None)
-                if bits is None and hasattr(self._rsa_pub, 'n'):
-                    bits = self._rsa_pub.n.bit_length()
-                self.lbl_rsa_pub.config(text=f"{bits} bits")
-            except Exception:
-                self.lbl_rsa_pub.config(text="Loaded")
-        else:
-            self.lbl_rsa_pub.config(text="(missing)")
-
-        if self._aes is not None:
-            self.lbl_aes.config(text=f"{len(self._aes)*8} bits")
-        else:
-            self.lbl_aes.config(text="(missing)")
-
-    def import_key_file(self):
-        path = filedialog.askopenfilename()
-        if not path:
-            return
-        try:
-            with open(path, 'rb') as f:
-                data = f.read()
-            # simple heuristic: PEM text contains 'BEGIN'
-            if b'BEGIN' in data:
-                # treat as RSA (private or public)
-                # ask user whether private or public
-                kind = messagebox.askquestion("Key type", "Is this a PRIVATE key? (No = public)")
-                private = (kind == 'yes')
-                save_custom_rsa_key(data, self.key_dir, private=private)
-                messagebox.showinfo("Imported", f"Saved custom RSA {'private' if private else 'public'} key to keys/")
+            if platform.system() == "Windows":
+                os.startfile(folder)
+            elif platform.system() == "Darwin":
+                subprocess.run(["open", folder])
             else:
-                # treat as raw AES key
-                save_custom_aes_key(data, self.key_dir)
-                messagebox.showinfo("Imported", "Saved custom AES key to keys/")
-            self.refresh_keys()
-        except Exception as e:
-            messagebox.showerror("Import failed", str(e))
+                subprocess.run(["xdg-open", folder])
+        except:
+            messagebox.showinfo(title, f"Location:\n{folder}")
 
-    def export_rsa_public(self):
-        if self._rsa_pub is None:
-            messagebox.showwarning("No key", "No RSA public key loaded")
+    def analyze_password(self):
+        pw = self.pw_entry.get()
+        if not pw:
+            self.pw_result.configure(text="Please enter a password!", text_color="#ff2a6d")
             return
-        path = filedialog.asksaveasfilename(defaultextension='.pem')
-        if not path:
-            return
-        try:
-            # write bytes depending on key object type
-            if hasattr(self._rsa_pub, 'export_key'):
-                data = self._rsa_pub.export_key()
-            else:
-                data = str(self._rsa_pub).encode()
-            with open(path, 'wb') as f:
-                f.write(data)
-            messagebox.showinfo('Saved', f'Public key saved to\n{path}')
-        except Exception as e:
-            messagebox.showerror('Error', str(e))
+        score = len(pw)*2 + (10 if any(c.isupper() for c in pw) else 0) + \
+                (15 if any(c.isdigit() for c in pw) else 0) + (20 if any(c in "!@#$%^&*()" for c in pw) else 0)
+        if score >= 55:   self.pw_result.configure(text="VERY STRONG!", text_color="#00ff99")
+        elif score >= 40: self.pw_result.configure(text="Strong", text_color="#00ffff")
+        elif score >= 25: self.pw_result.configure(text="Medium - Add symbols & numbers!", text_color="#ffff00")
+        else:             self.pw_result.configure(text="WEAK - Too short!", text_color="#ff2a6d")
 
-    def export_rsa_private(self):
-        if self._rsa_priv is None:
-            messagebox.showwarning("No key", "No RSA private key loaded")
-            return
-        path = filedialog.asksaveasfilename(defaultextension='.pem')
-        if not path:
-            return
-        try:
-            if hasattr(self._rsa_priv, 'export_key'):
-                data = self._rsa_priv.export_key()
-            else:
-                data = str(self._rsa_priv).encode()
-            with open(path, 'wb') as f:
-                f.write(data)
-            messagebox.showinfo('Saved', f'Private key saved to\n{path}')
-        except Exception as e:
-            messagebox.showerror('Error', str(e))
+    def run(self):
+        self.root.mainloop()
 
-    # ---------------------------------------------------------
-    # THREAT ANALYSIS TAB
-    # ---------------------------------------------------------
-    def _build_threat_tab(self, parent):
-        frame = tk.Frame(parent, bg=BG_DARK)
-        tk.Label(frame, text="Threat Analysis Tools", fg=ACCENT, bg=BG_DARK, font=("Segoe UI", 16, "bold")).pack(pady=10)
-
-        # Weak password
-        tk.Label(frame, text="Check Weak Password", fg=TEXT_LIGHT, bg=BG_DARK).pack(pady=5)
-        self.pass_entry = tk.Entry(frame, width=40, bg=BG_CARD, fg=TEXT_LIGHT, insertbackground="white")
-        self.pass_entry.pack()
-        tk.Button(frame, text="Analyze", bg=ACCENT, fg="black", command=self.check_password).pack(pady=5)
-
-        # Hash risk
-        tk.Label(frame, text="Check Hash Algorithm", fg=TEXT_LIGHT, bg=BG_DARK).pack(pady=15)
-        self.hash_entry = tk.Entry(frame, width=40, bg=BG_CARD, fg=TEXT_LIGHT, insertbackground="white")
-        self.hash_entry.pack()
-        tk.Button(frame, text="Analyze", bg=ACCENT, fg="black", command=self.check_hash).pack(pady=5)
-
-        self.threat_output = tk.Label(frame, text="", fg=GOOD, bg=BG_DARK, font=("Segoe UI", 12))
-        self.threat_output.pack(pady=20)
-
-        return frame
-
-    def check_password(self):
-        pw = self.pass_entry.get().strip()
-        if is_weak_password(pw):
-            self.threat_output.config(text="⚠ Weak password detected", fg=WARN)
-        else:
-            self.threat_output.config(text="✔ Strong password", fg=GOOD)
-
-    def check_hash(self):
-        name = self.hash_entry.get().strip()
-        if is_hash_algorithm_weak(name):
-            self.threat_output.config(text="⚠ Weak hash algorithm", fg=WARN)
-        else:
-            self.threat_output.config(text="✔ Safe hash algorithm", fg=GOOD)
-
-
-# -------------------------------------------------------------
-# RUN
-# -------------------------------------------------------------
 if __name__ == "__main__":
-    base = os.path.dirname(os.path.abspath(__file__))
-    app = CryptoGuardGUI(base)
-    app.mainloop()
+    app = CryptoGuardApp()
+    app.run()

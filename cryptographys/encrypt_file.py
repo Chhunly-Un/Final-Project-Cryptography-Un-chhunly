@@ -1,32 +1,46 @@
+# cryptography/encrypt_file.py
 import os
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import base64
+import pickle
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad
 
-RSA_PUBLIC_NAME = 'rsa_public.pem'
+def encrypt_file(input_path: str) -> tuple[str, str]:
+    filename = os.path.splitext(os.path.basename(input_path))[0]
+    key_name = f"{filename}_{__import__('uuid').uuid4().hex[:6]}"
 
+    # Generate new key pair
+    key = RSA.generate(2048)
+    os.makedirs("keys", exist_ok=True)
+    with open(f"keys/{key_name}_private.pem", "wb") as f:
+        f.write(key.export_key())
+    with open(f"keys/{key_name}_public.pem", "wb") as f:
+        f.write(key.publickey().export_key())
 
-def _load_rsa_public(key_dir: str):
-    path = os.path.join(key_dir, RSA_PUBLIC_NAME)
-    with open(path, 'rb') as f:
-        return serialization.load_pem_public_key(f.read())
-
-
-def encrypt_file(in_path: str, out_path: str, key_dir: str):
-    with open(in_path, 'rb') as f:
+    # Encrypt file
+    with open(input_path, "rb") as f:
         data = f.read()
-    aes_key = AESGCM.generate_key(bit_length=256)
-    aesgcm = AESGCM(aes_key)
-    nonce = os.urandom(12)
-    ciphertext = aesgcm.encrypt(nonce, data, None)
 
-    pub = _load_rsa_public(key_dir)
-    enc_key = pub.encrypt(
-        aes_key,
-        padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
-    )
+    session_key = get_random_bytes(32)
+    iv = get_random_bytes(16)
+    cipher_aes = AES.new(session_key, AES.MODE_CBC, iv)
+    ciphertext = cipher_aes.encrypt(pad(data, 16))
 
-    from struct import pack
-    header = pack('>I', len(enc_key))
-    with open(out_path, 'wb') as f:
-        f.write(header + enc_key + nonce + ciphertext)
+    cipher_rsa = PKCS1_OAEP.new(key.publickey())
+    enc_session_key = cipher_rsa.encrypt(session_key)
+
+    package = {
+        "key_name": key_name,
+        "enc_session_key": base64.b64encode(enc_session_key).decode(),
+        "iv": base64.b64encode(iv).decode(),
+        "ciphertext": base64.b64encode(ciphertext).decode()
+    }
+
+    os.makedirs("secured_files", exist_ok=True)
+    output_path = f"secured_files/{filename}.cg_enc"
+    with open(output_path, "wb") as f:
+        f.write(pickle.dumps(package))
+
+    return output_path, key_name

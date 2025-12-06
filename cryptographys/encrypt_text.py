@@ -1,34 +1,46 @@
+# cryptography/encrypt_text.py
 import os
-from cryptography.hazmat.primitives import serialization, hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+import base64
+import pickle
+from Crypto.PublicKey import RSA
+from Crypto.Cipher import AES, PKCS1_OAEP
+from Crypto.Random import get_random_bytes
+from Crypto.Util.Padding import pad
 
-RSA_PUBLIC_NAME = 'rsa_public.pem'
-AES_KEY_NAME = 'aes.key'
+def encrypt_text(plaintext: str) -> tuple[str, str]:
+    """
+    Returns: (encrypted_data, key_name)
+    """
+    # Generate new key pair for this text
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
 
+    # Unique key name
+    import uuid
+    key_name = f"text_{uuid.uuid4().hex[:8]}"
+    os.makedirs("keys", exist_ok=True)
 
-def _load_rsa_public(key_dir: str):
-    path = os.path.join(key_dir, RSA_PUBLIC_NAME)
-    with open(path, 'rb') as f:
-        data = f.read()
-    return serialization.load_pem_public_key(data)
+    with open(f"keys/{key_name}_private.pem", "wb") as f:
+        f.write(private_key)
+    with open(f"keys/{key_name}_public.pem", "wb") as f:
+        f.write(public_key)
 
+    # Hybrid encryption
+    session_key = get_random_bytes(32)
+    iv = get_random_bytes(16)
+    cipher_aes = AES.new(session_key, AES.MODE_CBC, iv)
+    ciphertext = cipher_aes.encrypt(pad(plaintext.encode(), 16))
 
-def encrypt_text(plaintext: str, key_dir: str) -> bytes:
-    # Hybrid: AES-GCM for content, RSA-OAEP for AES key
-    aes_key = AESGCM.generate_key(bit_length=256)
-    aesgcm = AESGCM(aes_key)
-    nonce = os.urandom(12)
-    ciphertext = aesgcm.encrypt(nonce, plaintext.encode('utf-8'), None)
+    cipher_rsa = PKCS1_OAEP.new(key.publickey())
+    enc_session_key = cipher_rsa.encrypt(session_key)
 
-    # encrypt AES key with RSA public
-    pub = _load_rsa_public(key_dir)
-    enc_key = pub.encrypt(
-        aes_key,
-        padding.OAEP(mgf=padding.MGF1(algorithm=hashes.SHA256()), algorithm=hashes.SHA256(), label=None),
-    )
+    package = {
+        "key_name": key_name,
+        "enc_session_key": base64.b64encode(enc_session_key).decode(),
+        "iv": base64.b64encode(iv).decode(),
+        "ciphertext": base64.b64encode(ciphertext).decode()
+    }
 
-    # format: len(enc_key)[4 bytes big-endian] + enc_key + nonce + ciphertext
-    from struct import pack
-    header = pack('>I', len(enc_key))
-    return header + enc_key + nonce + ciphertext
+    encrypted_b64 = base64.b64encode(pickle.dumps(package)).decode()
+    return encrypted_b64, key_name
