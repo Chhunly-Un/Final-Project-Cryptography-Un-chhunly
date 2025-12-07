@@ -1,9 +1,9 @@
-# gui.py - FINAL CLEAN MASTERPIECE (No Key Management Tab)
+# gui.py - FINAL FLAWLESS VERSION (Text saved to secured_files/ + All features perfect)
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import os
 
-# YOUR FOLDER IS CALLED "cryptographys" → keep this import
+# YOUR FOLDER NAME → "cryptographys"
 from cryptographys import encrypt_text, decrypt_text, encrypt_file, decrypt_file
 
 ctk.set_appearance_mode("Dark")
@@ -29,7 +29,6 @@ class CryptoGuardApp:
         tabview = ctk.CTkTabview(self.root, width=850, height=520)
         tabview.pack(pady=20)
 
-        # ONLY 3 TABS — CLEAN & PROFESSIONAL
         tabview.add("Text Encryption")
         tabview.add("File Encryption")
         tabview.add("Threat Analysis")
@@ -92,18 +91,26 @@ class CryptoGuardApp:
                                       text_color="#888", height=120, wraplength=600)
         self.pw_result.pack(pady=20)
 
-    # TEXT ENCRYPTION
+    # TEXT ENCRYPTION — NOW SAVES TO secured_files/ AUTOMATICALLY!
     def encrypt_text(self):
         text = self.text_input.get("0.0", "end").strip()
         if not text:
             messagebox.showwarning("Empty", "Please enter text to encrypt!")
             return
         try:
-            encrypted_b64, key_name = encrypt_text(text)
+            encrypted_b64, key_name, saved_path = encrypt_text(text)
+            
             self.text_result.delete("0.0", "end")
             self.text_result.insert("0.0", encrypted_b64)
-            messagebox.showinfo("TEXT ENCRYPTED!", 
-                f"New key generated!\n\nKey: {key_name}\nSaved: keys/{key_name}_private.pem\n\nKEEP THIS KEY SAFE!")
+            
+            messagebox.showinfo(
+                "TEXT ENCRYPTED & SAVED!",
+                f"New key generated!\n\n"
+                f"Key Name: {key_name}\n"
+                f"Private Key: keys/{key_name}_private.pem\n\n"
+                f"Encrypted Text Saved To:\n→ {os.path.basename(saved_path)}\n\n"
+                f"KEEP THIS KEY SAFE!"
+            )
         except Exception as e:
             messagebox.showerror("Error", f"Encryption failed:\n{e}")
 
