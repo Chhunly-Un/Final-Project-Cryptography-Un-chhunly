@@ -11,10 +11,6 @@ The primary goal of my project is to provide a real-world demostration of how cr
 It mean include such as encryption and decryption (file or text) and adding more if possible.
 # 2/ Thread Analysis
 Analyz like weaak password detection, weak key size detection, and hash collision risk checking
-# 3/ Key management
-Save/load RSA both privat and public key
-AES key generate and key storage in secure directory
-(Some feature I want to add like Attack Simulator)
 
 
 # Note: IN THIS PROJECT WILL HAVE SOMETHINGS CHAGE IF POSSIBLE!

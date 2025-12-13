@@ -1,58 +1,129 @@
 # cryptography/decrypt_text.py
 import os
-import base64
-import pickle
-from Crypto.Cipher import AES, PKCS1_OAEP
-from Crypto.PublicKey import RSA
-from Crypto.Util.Padding import unpad
+import json
 from tkinter import filedialog, messagebox
 
-def decrypt_text(encrypted_b64: str) -> str:
-    try:
-        package = pickle.loads(base64.b64decode(encrypted_b64))
-    except:
-        raise ValueError("Invalid encrypted text!")
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.padding import OAEP, MGF1  # ← Added MGF1
+from cryptography.hazmat.primitives.hashes import SHA256              # ← Critical: Added SHA256
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-    key_name = package["key_name"]
-    enc_session_key = base64.b64decode(package["enc_session_key"])
-    iv = base64.b64decode(package["iv"])
-    ciphertext = base64.b64decode(package["ciphertext"])
 
-    # Ask for private key
-    private_path = filedialog.askopenfilename(
-        initialdir="keys",
-        title=f"Select private key: {key_name}_private.pem",
-        filetypes=[("Private Key", "*_private.pem")]
+def decrypt_text() -> str:
+    """
+    Opens a .cg_text file, asks for the private key, decrypts the text,
+    and saves the plaintext to a user-chosen location.
+    Returns: path to the saved decrypted text file
+    """
+    # Step 1: Select encrypted text file
+    input_path = filedialog.askopenfilename(
+        title="Select Encrypted Text File",
+        filetypes=[
+            ("CryptoGuard Encrypted Text", "*.cg_text"),
+            ("JSON Files", "*.json"),
+            ("All Files", "*.*")
+        ]
     )
-    if not private_path:
-        raise ValueError("No key selected!")
+    if not input_path:
+        raise ValueError("No encrypted file selected!")
 
-    if key_name not in private_path:
-        if not messagebox.askyesno("Warning", "Key name doesn't match! Continue?"):
-            raise ValueError("Wrong key!")
+    # Load the JSON package
+    try:
+        with open(input_path, "r", encoding="utf-8") as f:
+            package = json.load(f)
+    except Exception as e:
+        raise ValueError(f"Invalid or corrupted encrypted file:\n{str(e)}")
 
-    private_key = RSA.import_key(open(private_path, "rb").read())
-    cipher_rsa = PKCS1_OAEP.new(private_key)
-    session_key = cipher_rsa.decrypt(enc_session_key)
+    key_name = package.get("key_name", "unknown")
+    try:
+        enc_aes_key = bytes.fromhex(package["enc_aes_key"])
+        nonce = bytes.fromhex(package["nonce"])
+        ciphertext = bytes.fromhex(package["ciphertext"])
+    except (KeyError, ValueError) as e:
+        raise ValueError(f"Missing or invalid data in encrypted file:\n{str(e)}")
 
-    cipher_aes = AES.new(session_key, AES.MODE_CBC, iv)
-    plaintext = unpad(cipher_aes.decrypt(ciphertext), 16).decode()
+    # Step 2: Select private key
+    private_key_path = filedialog.askopenfilename(
+        title=f"Select Private Key (hint: {key_name}_private.pem)",
+        filetypes=[
+            ("PEM Private Key", "*_private.pem"),
+            ("PEM Files", "*.pem"),
+            ("All Files", "*.*")
+        ]
+    )
+    if not private_key_path:
+        raise ValueError("No private key selected!")
 
-    # SAVE TO decrypted_folder AS .txt FILE
-    os.makedirs("decrypted_folder", exist_ok=True)
-    
-    # Create safe filename
-    import hashlib
-    safe_name = hashlib.md5(encrypted_b64.encode()).hexdigest()[:12]
-    output_path = f"decrypted_folder/text_decrypted_{safe_name}.txt"
-    
+    # Optional warning if key name doesn't match
+    if key_name != "unknown" and key_name not in os.path.basename(private_key_path):
+        if not messagebox.askyesno(
+            "Key Mismatch Warning",
+            "The private key filename doesn't match the expected name.\n"
+            "This might be the wrong key.\n\n"
+            "Continue anyway?"
+        ):
+            raise ValueError("Decryption cancelled by user.")
+
+    # Load private key
+    try:
+        with open(private_key_path, "rb") as f:
+            private_key = serialization.load_pem_private_key(f.read(), password=None)
+    except Exception as e:
+        raise ValueError(f"Failed to load private key:\n{str(e)}")
+
+    # Step 3: Decrypt the AES session key using RSA-OAEP
+    try:
+        aes_key = private_key.decrypt(
+            enc_aes_key,
+            OAEP(
+                mgf=MGF1(algorithm=SHA256()),
+                algorithm=SHA256(),
+                label=None
+            )
+        )
+    except Exception as e:
+        raise ValueError(f"Decryption failed — likely wrong private key:\n{str(e)}")
+
+    # Step 4: Decrypt the actual text with AES-GCM
+    try:
+        aesgcm = AESGCM(aes_key)
+        plaintext_bytes = aesgcm.decrypt(nonce, ciphertext, associated_data=None)
+        plaintext = plaintext_bytes.decode('utf-8')
+    except Exception as e:
+        raise ValueError(f"Failed to decrypt text (corrupted data or wrong key):\n{str(e)}")
+
+    # Step 5: Save decrypted text
+    suggested_name = "decrypted_text.txt"
+    save_path = filedialog.asksaveasfilename(
+        title="Save Decrypted Text As",
+        defaultextension=".txt",
+        initialfile=suggested_name,
+        filetypes=[("Text Files", "*.txt"), ("All Files", "*.*")]
+    )
+    if not save_path:
+        raise ValueError("Save cancelled by user.")
+
+    # Avoid overwrite with numbering
+    final_path = save_path
     counter = 1
-    final_path = output_path
+    base_dir = os.path.dirname(final_path)
+    base_name = os.path.basename(final_path).rsplit(".", 1)[0]
+    ext = ".txt"
+
     while os.path.exists(final_path):
-        final_path = f"decrypted_folder/text_decrypted_{safe_name}_{counter}.txt"
+        final_path = os.path.join(base_dir, f"{base_name}_{counter}{ext}")
         counter += 1
 
-    with open(final_path, "w", encoding="utf-8") as f:
-        f.write(plaintext)
+    try:
+        with open(final_path, "w", encoding="utf-8") as f:
+            f.write(plaintext)
+    except Exception as e:
+        raise ValueError(f"Failed to save decrypted file:\n{str(e)}")
 
-    return final_path  # Return path so GUI can show it
+    messagebox.showinfo(
+        "Decryption Successful!",
+        f"Text decrypted and saved to:\n\n{final_path}\n\n"
+        f"You can now open and read the file safely."
+    )
+
+    return final_path

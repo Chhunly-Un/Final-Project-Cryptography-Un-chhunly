@@ -1,8 +1,9 @@
-# gui.py - FINAL RESPONSIVE MASTERPIECE (100% Fixed & Beautiful)
+# gui.py - CryptoGuard v2.0 (2025 Secure Edition)
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import os
 
+# Correct imports from your updated secure modules
 from cryptographys import encrypt_text, decrypt_text, encrypt_file, decrypt_file
 from threat_analysis.password_strength import analyze_password_strength
 
@@ -12,35 +13,33 @@ ctk.set_default_color_theme("blue")
 class CryptoGuardApp:
     def __init__(self):
         self.root = ctk.CTk()
-        self.root.title("CryptoGuard v1.0")
+        self.root.title("CryptoGuard v2.0 - Secure Encryption Suite")
         
-        # RESPONSIVE WINDOW
+        # Responsive window
         self.root.geometry("1100x750")
         self.root.minsize(900, 650)
         
-        # Make everything stretch
         self.root.grid_rowconfigure(0, weight=1)
         self.root.grid_columnconfigure(0, weight=1)
 
         self.create_widgets()
 
     def create_widgets(self):
-        # MAIN FRAME - fills window
         main_frame = ctk.CTkFrame(self.root, corner_radius=15, fg_color="#1a1a2e")
         main_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
         main_frame.grid_rowconfigure(2, weight=1)
         main_frame.grid_columnconfigure(0, weight=1)
 
-        # TITLE
+        # Title
         title = ctk.CTkLabel(main_frame, text="CRYPTOGUARD", 
                              font=("Orbitron", 48, "bold"), text_color="#00ff99")
         title.grid(row=0, column=0, pady=(30, 10))
 
-        subtitle = ctk.CTkLabel(main_frame, text="Learn • Encrypt • Analyze • Stay Secure",
+        subtitle = ctk.CTkLabel(main_frame, text="Hybrid RSA-3072 + AES-256-GCM • Zero Fixed Folders • Maximum Security",
                                 font=("Consolas", 16), text_color="#00ffff")
         subtitle.grid(row=1, column=0, pady=(0, 20))
 
-        # TABS - RESPONSIVE
+        # Tabs
         tabview = ctk.CTkTabview(main_frame)
         tabview.grid(row=2, column=0, sticky="nsew", padx=30, pady=20)
 
@@ -56,51 +55,52 @@ class CryptoGuardApp:
         frame = tabview.tab("Text Encryption")
         frame.grid_rowconfigure(0, weight=3)
         frame.grid_rowconfigure(2, weight=3)
-        frame.grid_rowconfigure(1, weight=0)
         frame.grid_columnconfigure(0, weight=1)
 
+        ctk.CTkLabel(frame, text="Enter text to encrypt/decrypt", font=("Arial", 14), text_color="#aaa")\
+            .grid(row=0, column=0, pady=(30, 5), sticky="n")
+
         self.text_input = ctk.CTkTextbox(frame, font=("Consolas", 13))
-        self.text_input.grid(row=0, column=0, sticky="nsew", padx=40, pady=(30, 10))
+        self.text_input.grid(row=0, column=0, sticky="nsew", padx=40, pady=(0, 10))
 
         btn_frame = ctk.CTkFrame(frame, fg_color="transparent")
         btn_frame.grid(row=1, column=0, pady=15)
         btn_frame.grid_columnconfigure((0,1), weight=1)
 
         ctk.CTkButton(btn_frame, text="ENCRYPT TEXT", fg_color="#00ff41", hover_color="#00cc33",
-                      font=("Arial", 14, "bold"), height=50, command=self.encrypt_text).grid(row=0, column=0, padx=20)
-        ctk.CTkButton(btn_frame, text="DECRYPT TEXT", fg_color="#ff2a6d", hover_color="#cc0044",
-                      font=("Arial", 14, "bold"), height=50, command=self.decrypt_text).grid(row=0, column=1, padx=20)
+                      font=("Arial", 14, "bold"), height=50, command=self.encrypt_text_action)\
+                      .grid(row=0, column=0, padx=30, sticky="ew")
+
+        ctk.CTkButton(btn_frame, text="DECRYPT FROM FILE", fg_color="#ff2a6d", hover_color="#cc0044",
+                      font=("Arial", 14, "bold"), height=50, command=self.decrypt_text_action)\
+                      .grid(row=0, column=1, padx=30, sticky="ew")
+
+        ctk.CTkLabel(frame, text="Result / Encrypted Package (copy or save)", font=("Arial", 14), text_color="#aaa")\
+            .grid(row=2, column=0, pady=(20, 5), sticky="n")
 
         self.text_result = ctk.CTkTextbox(frame, font=("Consolas", 12))
-        self.text_result.grid(row=2, column=0, sticky="nsew", padx=40, pady=(10, 30))
+        self.text_result.grid(row=2, column=0, sticky="nsew", padx=40, pady=(0, 30))
 
     def build_file_tab(self, tabview):
         frame = tabview.tab("File Encryption")
-        frame.grid_rowconfigure(4, weight=1)
+        frame.grid_rowconfigure(3, weight=1)
         frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(frame, text="Secure Your Files with Hybrid RSA+AES-256", 
-                     font=("Arial", 20, "bold"), text_color="#05d6d9").grid(row=0, column=0, pady=40)
+        ctk.CTkLabel(frame, text="Military-Grade File Encryption", 
+                     font=("Arial", 24, "bold"), text_color="#05d6d9")\
+                     .grid(row=0, column=0, pady=50)
 
-        ctk.CTkButton(frame, text="Select File to ENCRYPT", fg_color="#05d6d9", hover_color="#03a9ac",
-                      font=("Arial", 16, "bold"), height=60, width=400, command=self.encrypt_file).grid(row=1, column=0, pady=15)
-        ctk.CTkButton(frame, text="Select File to DECRYPT", fg_color="#ff9100", hover_color="#cc7400",
-                      font=("Arial", 16, "bold"), height=60, width=400, command=self.decrypt_file).grid(row=2, column=0, pady=15)
+        ctk.CTkButton(frame, text="ENCRYPT A FILE", fg_color="#00ff99", hover_color="#00cc77",
+                      font=("Arial", 18, "bold"), height=70, width=500, command=self.encrypt_file_action)\
+                      .grid(row=1, column=0, pady=20)
 
-        self.file_status = ctk.CTkLabel(frame, text="Ready", font=("Consolas", 16), text_color="#00ff99")
-        self.file_status.grid(row=3, column=0, pady=30)
+        ctk.CTkButton(frame, text="DECRYPT A FILE", fg_color="#ff2a6d", hover_color="#cc0044",
+                      font=("Arial", 18, "bold"), height=70, width=500, command=self.decrypt_file_action)\
+                      .grid(row=2, column=0, pady=20)
 
-        # FOLDER BUTTONS - PERFECT LAYOUT
-        folder_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        folder_frame.grid(row=4, column=0, pady=20)
-        folder_frame.grid_columnconfigure((0,1,2), weight=1)
-
-        ctk.CTkButton(folder_frame, text="Open Encrypted Files", fg_color="#ff2a6d", hover_color="#cc0044",
-                      font=("Arial", 14, "bold"), height=55, command=self.open_encrypted_folder).grid(row=0, column=0, padx=15)
-        ctk.CTkButton(folder_frame, text="Open Decrypted Files", fg_color="#8a2be2", hover_color="#9932cc",
-                      font=("Arial", 14, "bold"), height=55, command=self.open_decrypted_folder).grid(row=0, column=1, padx=15)
-        ctk.CTkButton(folder_frame, text="Open Keys Folder", fg_color="#00ff41", hover_color="#00cc33",
-                      font=("Arial", 14, "bold"), height=55, command=self.open_keys_folder).grid(row=0, column=2, padx=15)
+        self.file_status = ctk.CTkLabel(frame, text="Ready to secure your files", 
+                                        font=("Consolas", 18), text_color="#00ffff", wraplength=900)
+        self.file_status.grid(row=3, column=0, pady=40)
 
     def build_threat_tab(self, tabview):
         frame = tabview.tab("Threat Analysis")
@@ -108,97 +108,128 @@ class CryptoGuardApp:
         frame.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(frame, text="Professional Password Strength Analyzer", 
-                     font=("Arial", 22, "bold"), text_color="#00ffff").grid(row=0, column=0, pady=40)
+                     font=("Arial", 22, "bold"), text_color="#00ffff")\
+                     .grid(row=0, column=0, pady=50)
 
-        self.pw_entry = ctk.CTkEntry(frame, placeholder_text="Enter password to analyze", show="*", 
-                                     font=("Consolas", 16), height=55, width=500)
-        self.pw_entry.grid(row=1, column=0, pady=20)
+        self.pw_entry = ctk.CTkEntry(frame, placeholder_text="Type or paste password here", show="*", 
+                                     font=("Consolas", 18), height=60, width=600)
+        self.pw_entry.grid(row=1, column=0, pady=30)
 
-        ctk.CTkButton(frame, text="ANALYZE PASSWORD", fg_color="#ff2a6d", hover_color="#cc0044",
-                      font=("Arial", 18, "bold"), height=70, width=400, command=self.analyze_password).grid(row=2, column=0, pady=25)
+        ctk.CTkButton(frame, text="ANALYZE STRENGTH", fg_color="#ff2a6d", hover_color="#cc0044",
+                      font=("Arial", 18, "bold"), height=70, width=400, command=self.analyze_password)\
+                      .grid(row=2, column=0, pady=30)
 
-        self.pw_result = ctk.CTkLabel(frame, text="Result will appear here", 
+        self.pw_result = ctk.CTkLabel(frame, text="Enter a password to begin analysis", 
                                       font=("Consolas", 16), text_color="#888",
-                                      wraplength=800, justify="center")
-        self.pw_result.grid(row=3, column=0, pady=30, sticky="nsew")
+                                      wraplength=900, justify="center")
+        self.pw_result.grid(row=3, column=0, pady=40, sticky="nsew")
 
-    # YOUR FUNCTIONS (unchanged)
-    def encrypt_text(self):
-        text = self.text_input.get("0.0", "end").strip()
+    # === ACTION METHODS ===
+
+    def encrypt_text_action(self):
+        text = self.text_input.get("1.0", "end-1c").strip()
         if not text:
-            messagebox.showwarning("Empty", "Please enter text!")
+            messagebox.showwarning("Empty Input", "Please enter some text to encrypt!")
             return
         try:
-            encrypted_b64, key_name, saved_path = encrypt_text(text)
-            self.text_result.delete("0.0", "end")
-            self.text_result.insert("0.0", encrypted_b64)
-            messagebox.showinfo("SUCCESS", f"Encrypted & Saved!\n→ {os.path.basename(saved_path)}\nKey: {key_name}")
+            encrypted_hex, enc_path, pub_path, priv_path = encrypt_text(text)
+            self.text_result.delete("1.0", "end")
+            self.text_result.insert("1.0", encrypted_hex)
+            
+            msg = (f"Text Encrypted Successfully!\n\n"
+                   f"• Encrypted file saved to:\n{os.path.basename(enc_path)}\n\n"
+                   f"• Public key: {os.path.basename(pub_path)}\n"
+                   f"• Private key: {os.path.basename(priv_path)}\n\n"
+                   f"KEEP YOUR PRIVATE KEY SAFE!")
+            messagebox.showinfo("Encryption Complete", msg)
         except Exception as e:
-            messagebox.showerror("Error", str(e))
+            messagebox.showerror("Encryption Failed", str(e))
 
-    def decrypt_text(self):
-        text = self.text_input.get("0.0", "end").strip()
-        if not text:
-            messagebox.showwarning("Empty", "Paste encrypted text!")
+    def decrypt_text_action(self):
+        try:
+            output_path = decrypt_text()  # This opens file dialog internally
+            self.text_result.delete("1.0", "end")
+            self.text_result.insert("1.0", f"DECRYPTION SUCCESSFUL!\n\n"
+                                            f"Decrypted text saved to:\n{output_path}")
+            messagebox.showinfo("Decrypted!", f"File saved:\n{output_path}")
+        except Exception as e:
+            messagebox.showerror("Decryption Failed", str(e))
+
+    def encrypt_file_action(self):
+        input_path = filedialog.askopenfilename(title="Select File to Encrypt")
+        if not input_path:
             return
         try:
-            output_path = decrypt_text(text)
-            self.text_result.delete("0.0", "end")
-            self.text_result.insert("0.0", f"DECRYPTED!\n→ {os.path.basename(output_path)}")
-            messagebox.showinfo("SUCCESS", f"Decrypted!\n→ {os.path.basename(output_path)}")
-            self.open_decrypted_folder()
-        except Exception as e:
-            messagebox.showerror("FAILED", str(e))
-
-    def encrypt_file(self):
-        path = filedialog.askopenfilename()
-        if not path: return
-        try:
-            out, key = encrypt_file(path)
-            self.file_status.configure(text=f"ENCRYPTED → {key}", text_color="#00ff99")
-            messagebox.showinfo("SUCCESS", f"Encrypted!\n→ {os.path.basename(out)}\nKey: {key}")
+            enc_path, pub_path, priv_path = encrypt_file(input_path)
+            self.file_status.configure(
+                text=f"ENCRYPTED → {os.path.basename(enc_path)}", 
+                text_color="#00ff99"
+            )
+            msg = (f"File Encrypted Successfully!\n\n"
+                   f"• Encrypted: {os.path.basename(enc_path)}\n"
+                   f"• Public Key: {os.path.basename(pub_path)}\n"
+                   f"• Private Key: {os.path.basename(priv_path)}\n\n"
+                   f"Store your private key securely!")
+            messagebox.showinfo("Success", msg)
         except Exception as e:
             messagebox.showerror("Error", str(e))
+            self.file_status.configure(text="Encryption failed", text_color="#ff2a6d")
 
-    def decrypt_file(self):
-        path = filedialog.askopenfilename(initialdir="secured_files", filetypes=[("CG Files", "*.cg_enc")])
-        if not path: return
+    def decrypt_file_action(self):
         try:
-            out = decrypt_file(path)
-            self.file_status.configure(text="DECRYPTED → decrypted_folder/", text_color="#05d6d9")
-            messagebox.showinfo("SUCCESS", f"Decrypted!\n→ {os.path.basename(out)}")
-            if messagebox.askyesno("Open?", "Open folder?"):
-                self.open_decrypted_folder()
+            output_path = decrypt_file()  # Opens dialogs internally
+            self.file_status.configure(
+                text=f"DECRYPTED → {os.path.basename(output_path)}", 
+                text_color="#05d6d9"
+            )
+            messagebox.showinfo("Decryption Complete", f"File saved to:\n{output_path}")
         except Exception as e:
-            messagebox.showerror("FAILED", str(e))
+            messagebox.showerror("Decryption Failed", str(e))
+            self.file_status.configure(text="Decryption failed", text_color="#ff2a6d")
 
     def analyze_password(self):
-        pw = self.pw_entry.get()
+        pw = self.pw_entry.get().strip()
         if not pw:
-            self.pw_result.configure(text="Enter a password!", text_color="#ff2a6d")
+            self.pw_result.configure(
+                text="Please enter a password to analyze!",
+                text_color="#ff4444"
+            )
             return
-        score, label, feedback, color = analyze_password_strength(pw)
-        result = f"Score: {score}/100 → {label}\n\n" + "\n".join(f"• {f}" for f in feedback)
-        self.pw_result.configure(text=result, text_color=color)
 
-    def open_encrypted_folder(self): self._open("secured_files")
-    def open_decrypted_folder(self): self._open("decrypted_folder")
-    def open_keys_folder(self):      self._open("keys")
-
-    def _open(self, folder):
-        path = os.path.join(os.getcwd(), folder)
-        os.makedirs(path, exist_ok=True)
-        import subprocess, platform
         try:
-            if platform.system() == "Windows":
-                os.startfile(path)
-            else:
-                subprocess.run(["xdg-open", path] if platform.system() != "Darwin" else ["open", path])
-        except:
-            messagebox.showinfo("Folder", path)
+            score, label, feedback, color = analyze_password_strength(pw)
+
+            # Build beautiful result text
+            result_lines = [
+                f"🔐 STRENGTH: {score}/100 → {label}",
+                "",  # empty line
+            ]
+            result_lines.extend(f"• {item}" for item in feedback)
+
+            result_text = "\n".join(result_lines)
+
+            self.pw_result.configure(
+                text=result_text,
+                text_color=color,
+                font=("Consolas", 15),
+                wraplength=900,
+                justify="left"
+            )
+
+            # Optional: Add subtle animation feel with brief highlight
+            if score >= 80:
+                self.pw_result.configure(text_color="#00ff88")
+                self.root.after(300, lambda: self.pw_result.configure(text_color=color))
+
+        except Exception as e:
+            self.pw_result.configure(
+                text=f"Error during analysis: {str(e)}",
+                text_color="#ff0000"
+            )
 
     def run(self):
         self.root.mainloop()
+
 
 if __name__ == "__main__":
     app = CryptoGuardApp()
