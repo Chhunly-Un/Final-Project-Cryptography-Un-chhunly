@@ -13,7 +13,7 @@ ctk.set_default_color_theme("blue")
 class CryptoGuardApp:
     def __init__(self):
         self.root = ctk.CTk()
-        self.root.title("CryptoGuard v2.0 - Secure Encryption Suite")
+        self.root.title("CryptoGuard v1.0 - Secure Encryption Suite")
         
         # Responsive window
         self.root.geometry("1100x750")
@@ -67,11 +67,11 @@ class CryptoGuardApp:
         btn_frame.grid(row=1, column=0, pady=15)
         btn_frame.grid_columnconfigure((0,1), weight=1)
 
-        ctk.CTkButton(btn_frame, text="ENCRYPT TEXT", fg_color="#00ff41", hover_color="#00cc33",
+        ctk.CTkButton(btn_frame, text="ENCRYPT TEXT", fg_color="#0066ff", hover_color="#32d6ff",
                       font=("Arial", 14, "bold"), height=50, command=self.encrypt_text_action)\
                       .grid(row=0, column=0, padx=30, sticky="ew")
 
-        ctk.CTkButton(btn_frame, text="DECRYPT FROM FILE", fg_color="#ff2a6d", hover_color="#cc0044",
+        ctk.CTkButton(btn_frame, text="DECRYPT FROM FILE", fg_color="#b523ef", hover_color="#c900cc",
                       font=("Arial", 14, "bold"), height=50, command=self.decrypt_text_action)\
                       .grid(row=0, column=1, padx=30, sticky="ew")
 
@@ -86,15 +86,15 @@ class CryptoGuardApp:
         frame.grid_rowconfigure(3, weight=1)
         frame.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(frame, text="Military-Grade File Encryption", 
+        ctk.CTkLabel(frame, text="Secure File Encryption", 
                      font=("Arial", 24, "bold"), text_color="#05d6d9")\
                      .grid(row=0, column=0, pady=50)
 
-        ctk.CTkButton(frame, text="ENCRYPT A FILE", fg_color="#00ff99", hover_color="#00cc77",
+        ctk.CTkButton(frame, text="ENCRYPT A FILE", fg_color="#00c3ff", hover_color="#0074cc",
                       font=("Arial", 18, "bold"), height=70, width=500, command=self.encrypt_file_action)\
                       .grid(row=1, column=0, pady=20)
 
-        ctk.CTkButton(frame, text="DECRYPT A FILE", fg_color="#ff2a6d", hover_color="#cc0044",
+        ctk.CTkButton(frame, text="DECRYPT A FILE", fg_color="#b42aff", hover_color="#b100cc",
                       font=("Arial", 18, "bold"), height=70, width=500, command=self.decrypt_file_action)\
                       .grid(row=2, column=0, pady=20)
 
@@ -190,42 +190,36 @@ class CryptoGuardApp:
     def analyze_password(self):
         pw = self.pw_entry.get().strip()
         if not pw:
-            self.pw_result.configure(
-                text="Please enter a password to analyze!",
-                text_color="#ff4444"
-            )
+            self.pw_result.configure(text="⚠ Please enter a password!", text_color="#ff4444")
             return
 
         try:
             score, label, feedback, color = analyze_password_strength(pw)
 
-            # Build beautiful result text
-            result_lines = [
-                f"🔐 STRENGTH: {score}/100 → {label}",
-                "",  # empty line
-            ]
-            result_lines.extend(f"• {item}" for item in feedback)
+            lines = [f"🔐 STRENGTH: {score}/100 → {label}", ""]
+            lines.extend(f"• {item}" for item in feedback)
+            result = "\n".join(lines)
 
-            result_text = "\n".join(result_lines)
+            # Use brighter/more visible colors for weak/medium
+            display_color = color
+            if score < 50:
+                display_color = "#ffaa00"  # Brighter orange for weak
+            elif score < 70:
+                display_color = "#ffff66"  # Brighter yellow
 
             self.pw_result.configure(
-                text=result_text,
-                text_color=color,
-                font=("Consolas", 15),
-                wraplength=900,
-                justify="left"
+                text=result,
+                text_color=display_color,
+                font=("Consolas", 17, "bold")  # Slightly larger/bolder for visibility
             )
 
-            # Optional: Add subtle animation feel with brief highlight
+            # Flash effect for strong
             if score >= 80:
                 self.pw_result.configure(text_color="#00ff88")
-                self.root.after(300, lambda: self.pw_result.configure(text_color=color))
+                self.root.after(500, lambda: self.pw_result.configure(text_color=display_color))
 
         except Exception as e:
-            self.pw_result.configure(
-                text=f"Error during analysis: {str(e)}",
-                text_color="#ff0000"
-            )
+            self.pw_result.configure(text=f"Error: {str(e)}", text_color="#ff0000")
 
     def run(self):
         self.root.mainloop()
