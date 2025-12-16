@@ -1,0 +1,53 @@
+# =========================
+
+# Python virtual environment
+
+# =========================
+
+venv/
+.env/
+
+# =========================
+
+# Python cache files
+
+# =========================
+
+**pycache**/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+
+# OS / Editor files
+
+# =========================
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+
+# Cryptography outputs (VERY IMPORTANT)
+
+# =========================
+
+*.pem          # private/public keys
+*.cg_enc       # encrypted files
+*.cg_text      # encrypted text
+*_DECRYPTED*
+*.key
+*.log
+
+# =========================
+
+# Build / distribution
+
+# =========================
+
+build/
+dist/
+*.spec
