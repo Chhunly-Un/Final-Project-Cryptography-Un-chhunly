@@ -1,16 +1,25 @@
 # Final-Project-Cryptography
-# Un Chhunly
-
 # Project's name: CryptoGuard
-# Introduction
- 
-CryptoGuard is a desktop application that allows users to encrypt and decrypt data, generate key, create secure hash, and analyz their password. On that time on this project just a demo GUI by using python.
-The primary goal of my project is to provide a real-world demostration of how cryptographic algorithms and principle can be applied dto secure data. My CryptoGuard is a bridge the gap between theoretical crytography and practical cybersecurity inplementation.
-# Application Features
-# 1/ Cryptography
-It mean include such as encryption and decryption (file or text) and adding more if possible.
-# 2/ Thread Analysis
-Analyz like weaak password detection, weak key size detection, and hash collision risk checking
 
+# CryptoGuard
 
-# Note: IN THIS PROJECT WILL HAVE SOMETHINGS CHAGE IF POSSIBLE!
+CryptoGuard is a secure encryption application using hybrid cryptography
+(RSA-3072 + AES-256-GCM) with digital signatures.
+
+## Features
+- Text encryption & decryption
+- File encryption & decryption
+- Digital signature verification
+- Password strength threat analysis
+- Modern GUI (CustomTkinter)
+
+## Requirements
+- Python 3.10+
+- See requirements.txt
+
+## How to Run
+```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+python main.py

@@ -17,11 +17,10 @@ class CryptoGuardApp:
         self.root.minsize(800, 600)
         self.root.geometry("900x700")
 
-        # === CUSTOM ICON - WORKS ON WINDOWS + MAC + LINUX (BYPASSES CUSTOMTKINTER OVERRIDE) ===
+        # === CUSTOM ICON ===
         try:
-            icon_path = "icons.ico"  # Use .ico file (works best on Windows + macOS)
+            icon_path = "icons.ico"
             if os.path.exists(icon_path):
-                # Delay the iconbitmap call to override CustomTkinter's default
                 self.root.after(300, lambda: self.root.iconbitmap(icon_path))
                 print("Custom icon set successfully (delayed for Windows)!")
             else:
