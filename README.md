@@ -19,7 +19,7 @@ confidentiality, integrity, and authentication in a user-friendly application.
 
 ---
 
-## ⚙️ Installation / Setup Instructions
+## Installation / Setup Instructions
 
 ### Prerequisites
 - Python **3.10 or higher**
