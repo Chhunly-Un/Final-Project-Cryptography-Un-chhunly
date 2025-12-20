@@ -1,25 +1,32 @@
 # Final-Project-Cryptography
-# Project's name: CryptoGuard
+# Project Name: CryptoGuard
 
-# CryptoGuard
+## CryptoGuard
 
-CryptoGuard is a secure encryption application using hybrid cryptography
-(RSA-3072 + AES-256-GCM) with digital signatures.
+CryptoGuard is a secure encryption application that uses **hybrid cryptography**
+(RSA-3072 and AES-256-GCM) combined with **digital signatures** to protect text and files.
+The project demonstrates how modern cryptographic techniques can be used to ensure
+confidentiality, integrity, and authentication in a user-friendly application.
+
+---
 
 ## Features
-- Text encryption & decryption
-- File encryption & decryption
-- Digital signature verification
-- Password strength threat analysis
-- Modern GUI (CustomTkinter)
+- Text encryption and decryption
+- File encryption and decryption
+- Digital signature creation and verification
+- Password strength and threat analysis
+- Modern GUI using CustomTkinter
 
-## Requirements
-- Python 3.10+
-- See requirements.txt
+---
 
-## How to Run
+## ⚙️ Installation / Setup Instructions
+
+### Prerequisites
+- Python **3.10 or higher**
+- pip (Python package manager)
+
+### Setup Steps
 ```bash
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
-python main.py
